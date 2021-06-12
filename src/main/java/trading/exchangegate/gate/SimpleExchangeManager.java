@@ -3,10 +3,9 @@ package trading.exchangegate.gate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import trading.exchangegate.message.Event;
 import trading.exchangegate.message.OhlcMessage;
 
-import java.util.function.Consumer;
+import java.util.Queue;
 
 @Component
 public class SimpleExchangeManager implements ExchangeManager {
@@ -24,7 +23,7 @@ public class SimpleExchangeManager implements ExchangeManager {
             String pair = ohlcMessage.getPair();
             repository.findSubscriptions(pair).forEach(c -> {
                 try {
-                    c.getConsumer().accept(ohlcMessage);
+                    c.getQueue().add(ohlcMessage);
                 } catch (Throwable e) {
                     log.error("Error at sending message to consumer", e);
                 }
@@ -33,8 +32,8 @@ public class SimpleExchangeManager implements ExchangeManager {
     }
 
     @Override
-    public long subscribe(String pair, Consumer<OhlcMessage> consumer) {
-        Subscription newSubscription = new Subscription(pair, consumer);
+    public long subscribe(String pair, Queue<OhlcMessage> queue) {
+        Subscription newSubscription = new Subscription(pair, queue);
         synchronized (lock) {
             if (!repository.existSubscriptions(pair)) {
                 exchangeClient.subscribe(pair);

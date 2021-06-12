@@ -5,10 +5,6 @@ import trading.exchangegate.message.OhlcMessage;
 
 import java.util.function.Consumer;
 
-/**
- * Managing websocket connection.
- * Encoding and decoding messages.
- */
 public interface ExchangeClient {
 
     void setOhlcConsumer(Consumer<OhlcMessage> consumer);

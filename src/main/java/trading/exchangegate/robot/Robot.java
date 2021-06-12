@@ -41,7 +41,7 @@ public class Robot {
                 .map(ConfigItem::getPair)
                 .collect(Collectors.toSet());
         final List<Long> ids = pairs.stream()
-                .map(pair -> exchangeManager.subscribe(pair, messageQueue::add))
+                .map(pair -> exchangeManager.subscribe(pair, messageQueue))
                 .collect(Collectors.toList());
         Thread thread = new Thread(() -> {
             log.info("Started robot.");

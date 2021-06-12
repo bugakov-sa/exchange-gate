@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import trading.exchangegate.message.OhlcMessage;
 
+import java.util.Queue;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
@@ -14,5 +15,5 @@ class Subscription {
 
     private final long id = GATE_SUBSCRIPTION_ID_GENERATOR.incrementAndGet();
     private final String pair;
-    private final Consumer<OhlcMessage> consumer;
+    private final Queue<OhlcMessage> queue;
 }
