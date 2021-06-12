@@ -111,7 +111,7 @@ public class KrakenExchangeClient implements ExchangeClient {
 
     @Override
     public void unsubscribe(String pair) {
-        ConfigOhlcMessage message = ConfigOhlcMessage.ohlc(pair, Event.SUBSCRIBE);
+        ConfigOhlcMessage message = ConfigOhlcMessage.ohlc(pair, Event.UNSUBSCRIBE);
         TextMessage textMessage = buildTextMessage(message);
         String payload = textMessage.getPayload();
         try {
