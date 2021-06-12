@@ -13,9 +13,9 @@ public interface ExchangeClient {
 
     void setOhlcConsumer(Consumer<OhlcMessage> consumer);
 
-    void subscribe(String pair);
+    void subscribe(String... pairs);
 
-    void unsubscribe(String pair);
+    void unsubscribe(String... pairs);
 
     void setEventConsumer(Consumer<EventMessage> consumer);
 }

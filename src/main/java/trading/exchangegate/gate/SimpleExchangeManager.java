@@ -30,11 +30,6 @@ public class SimpleExchangeManager implements ExchangeManager {
                 }
             });
         });
-        exchangeClient.setEventConsumer(eventMessage -> {
-            if(eventMessage.getEvent() != Event.HEARTBEAT) {
-                log.info("Event {}", eventMessage);
-            }
-        });
     }
 
     @Override

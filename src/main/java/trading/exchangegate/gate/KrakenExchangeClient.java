@@ -10,7 +10,6 @@ import org.springframework.web.socket.WebSocketHttpHeaders;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
-import trading.exchangegate.message.ConfigOhlcMessage;
 import trading.exchangegate.message.Event;
 import trading.exchangegate.message.EventMessage;
 import trading.exchangegate.message.OhlcMessage;
@@ -21,6 +20,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
+
+import static trading.exchangegate.message.SubscribeMessage.subscribeOhlc;
+import static trading.exchangegate.message.SubscribeMessage.unsubscribeOhlc;
 
 @Component
 public class KrakenExchangeClient implements ExchangeClient {
@@ -52,7 +54,10 @@ public class KrakenExchangeClient implements ExchangeClient {
             EventMessage eventMessage = EventMessage.tryParse(payload);
             if (eventMessage != null) {
                 try {
-                    eventConsumer.accept(eventMessage);
+                    if(eventMessage.getEvent() != Event.HEARTBEAT) {
+                        log.info("Event {}", eventMessage);
+                        eventConsumer.accept(eventMessage);
+                    }
                 } catch (Throwable t) {
                     log.error("Error at accepting event message " + ohlcMessage, t);
                 } finally {
@@ -86,40 +91,14 @@ public class KrakenExchangeClient implements ExchangeClient {
         ohlcConsumer = consumer;
     }
 
-    private TextMessage buildTextMessage(Object message) {
-        String json;
-        try {
-            json = jsonMapper.writeValueAsString(message);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
-        return new TextMessage(json);
+    @Override
+    public void subscribe(String ... pairs) {
+        send(subscribeOhlc(pairs));
     }
 
     @Override
-    public void subscribe(String pair) {
-        ConfigOhlcMessage message = ConfigOhlcMessage.ohlc(pair, Event.SUBSCRIBE);
-        TextMessage textMessage = buildTextMessage(message);
-        String payload = textMessage.getPayload();
-        try {
-            session.sendMessage(textMessage);
-            log.info("Sent message {}", payload);
-        } catch (IOException e) {
-            log.error("Error at sending message + " + payload, e);
-        }
-    }
-
-    @Override
-    public void unsubscribe(String pair) {
-        ConfigOhlcMessage message = ConfigOhlcMessage.ohlc(pair, Event.UNSUBSCRIBE);
-        TextMessage textMessage = buildTextMessage(message);
-        String payload = textMessage.getPayload();
-        try {
-            session.sendMessage(textMessage);
-            log.info("Sent message {}", payload);
-        } catch (IOException e) {
-            log.error("Error at sending message + " + payload, e);
-        }
+    public void unsubscribe(String ... pairs) {
+        send(unsubscribeOhlc(pairs));
     }
 
     @Override
@@ -134,5 +113,26 @@ public class KrakenExchangeClient implements ExchangeClient {
     @PreDestroy
     public void close() throws IOException {
         session.close();
+    }
+
+    private TextMessage buildTextMessage(Object message) {
+        String json;
+        try {
+            json = jsonMapper.writeValueAsString(message);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+        return new TextMessage(json);
+    }
+
+    private void send(Object message) {
+        TextMessage textMessage = buildTextMessage(message);
+        String payload = textMessage.getPayload();
+        try {
+            session.sendMessage(textMessage);
+            log.info("Sent message {}", payload);
+        } catch (IOException e) {
+            log.error("Error at sending message + " + payload, e);
+        }
     }
 }

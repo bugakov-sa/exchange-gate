@@ -2,46 +2,45 @@ package trading.exchangegate.message;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Builder;
 import lombok.Data;
 
 import java.util.List;
 
 @Data
+@Builder
 public class OhlcMessage {
 
     private static final ObjectMapper jsonParser = new ObjectMapper();
 
-    private String pair;
-    private long time, etime;
-    private double open, high, low, close, vwap, volume;
-    private long count;
-
-    private OhlcMessage() {
-    }
+    private final String pair;
+    private final long time, etime;
+    private final double open, high, low, close, vwap, volume;
+    private final long count;
 
     public static OhlcMessage tryParse(String raw) {
         if (!raw.startsWith("[") || !raw.contains("ohlc")) {
             return null;
         }
-        Object[] objects = new Object[0];
+        Object[] objects;
         try {
             objects = jsonParser.readValue(raw, Object[].class);
         } catch (JsonProcessingException e) {
             return null;
         }
-        OhlcMessage message = new OhlcMessage();
-        message.setPair(objects[3].toString());
+        OhlcMessageBuilder builder = new OhlcMessageBuilder();
+        builder.pair = objects[3].toString();
         List numbers = (List) (objects[1]);
-        message.setTime(Math.round(parse(numbers.get(0))));
-        message.setEtime(Math.round(parse(numbers.get(1))));
-        message.setOpen(parse(numbers.get(2)));
-        message.setHigh(parse(numbers.get(3)));
-        message.setLow(parse(numbers.get(4)));
-        message.setClose(parse(numbers.get(5)));
-        message.setVwap(parse(numbers.get(6)));
-        message.setVolume(parse(numbers.get(7)));
-        message.setCount(Long.parseLong(numbers.get(8).toString()));
-        return message;
+        builder.time = Math.round(parse(numbers.get(0)));
+        builder.etime = Math.round(parse(numbers.get(1)));
+        builder.open = parse(numbers.get(2));
+        builder.high = parse(numbers.get(3));
+        builder.low = parse(numbers.get(4));
+        builder.close = parse(numbers.get(5));
+        builder.vwap = parse(numbers.get(6));
+        builder.volume = parse(numbers.get(7));
+        builder.count = Long.parseLong(numbers.get(8).toString());
+        return builder.build();
     }
 
     private static double parse(Object o) {
