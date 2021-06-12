@@ -44,20 +44,21 @@ public class SimpleExchangeManager implements ExchangeManager {
             if (!repository.existSubscriptions(pair)) {
                 exchangeClient.subscribe(pair);
             }
+            repository.addSubscription(newSubscription);
         }
-        repository.addSubscription(newSubscription);
         return newSubscription.getId();
     }
 
     @Override
     public void unsubscribe(long id) {
         Subscription subscription = repository.findSubscription(id);
-        if (subscription != null) {
+        if (subscription == null) {
+            return;
+        }
+        synchronized (lock) {
             repository.removeSubscription(subscription);
-            synchronized (lock) {
-                if (!repository.existSubscriptions(subscription.getPair())) {
-                    exchangeClient.unsubscribe(subscription.getPair());
-                }
+            if (!repository.existSubscriptions(subscription.getPair())) {
+                exchangeClient.unsubscribe(subscription.getPair());
             }
         }
     }
