@@ -4,11 +4,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import trading.exchange.ExchangeManager;
 import trading.message.Message;
-import trading.message.Order;
 
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -18,68 +17,64 @@ import static java.util.Collections.unmodifiableList;
 public class Robot {
 
     private static final Logger log = LoggerFactory.getLogger(Robot.class);
-    public static final int LOOP_SLEEP_MILLIS = 5000;
+    private static final int LOOP_SLEEP_MILLIS = 5000;
 
-    private final Queue<Message> messageQueue = new ConcurrentLinkedQueue<>();
+    private final Queue<Message> exchangeQueue = new ConcurrentLinkedQueue<>();
+    private final Queue<Message> robotQueue = new LinkedList<>();
 
-    private final RobotStrategy robotStrategy;
-    private final List<ConfigItem> configItems;
-    private final ExchangeManager exchangeManager;
-    private final StateHolder stateHolder;
+    private final RobotStrategy strategy;
+    private final ExchangeManager exchange;
+    private final List<ConfigItem> config;
+    private final StateHolder state;
 
     private volatile boolean stopping = false;
 
-    public Robot(RobotStrategy robotStrategy, ExchangeManager exchangeManager) {
-        this.robotStrategy = robotStrategy;
-        this.configItems = unmodifiableList(robotStrategy.getConfig());
-        this.stateHolder = new StateHolder(new State(), configItems);
-        this.exchangeManager = exchangeManager;
+    public Robot(RobotStrategy strategy, ExchangeManager exchange) {
+        this.strategy = strategy;
+        this.exchange = exchange;
+        this.config = unmodifiableList(strategy.getConfig());
+        this.state = new StateHolder(new State(), config);
     }
 
     public void start() {
         log.info("Starting robot...");
-        final Set<String> pairs = configItems.stream()
+        List<Long> ids = config.stream()
                 .map(ConfigItem::getPair)
-                .collect(Collectors.toSet());
-        final List<Long> ids = pairs.stream()
-                .map(pair -> exchangeManager.subscribe(pair, messageQueue))
+                .map(pair -> exchange.subscribe(pair, exchangeQueue))
                 .collect(Collectors.toList());
-        Thread thread = new Thread(() -> {
+        new Thread(() -> {
             log.info("Started robot.");
-            while (!stopping) {
+            do {
                 try {
-                    State oldState = stateHolder.getState();
                     List<Message> newMessages = pollNewMessages();
-                    stateHolder.update(newMessages);
-                    if (stateHolder.isStateChanged()) {
-                        log.debug("New state calculated.");
-                        log.debug("New messages {}", newMessages);
-                        log.debug("Old state {}", oldState);
-                        log.debug("New state {}", stateHolder.getState());
-                        log.debug("Calling robot loop...");
-                        List<Order> orders = robotStrategy.loop(stateHolder.getState());
-                        executeOrders(orders);
+                    state.update(newMessages);
+                    if (state.isStateChanged()) {
+                        stopping = strategy.loop(state.getState(), robotQueue);
+                        processRobotMessages();
                     }
-                    Thread.sleep(LOOP_SLEEP_MILLIS);
+                    if (!stopping) {
+                        Thread.sleep(LOOP_SLEEP_MILLIS);
+                    }
                 } catch (Throwable error) {
                     log.error("Error during robot loop", error);
                 }
-
             }
-            ids.forEach(exchangeManager::unsubscribe);
+            while (!stopping);
+            ids.forEach(exchange::unsubscribe);
             log.info("Stopping robot...");
-        });
-        thread.start();
+        }).start();
     }
 
     private List<Message> pollNewMessages() {
-        return IntStream.range(0, messageQueue.size())
-                .mapToObj(i -> messageQueue.poll())
+        return IntStream.range(0, exchangeQueue.size())
+                .mapToObj(i -> exchangeQueue.poll())
                 .collect(Collectors.toList());
     }
 
-    private void executeOrders(List<Order> orders) {
-        //TODO
+    private void processRobotMessages() {
+        //TODO: send orders to exchange
+        //TODO: send debug messages to management ui
+        //TODO: send notifications to mail
     }
 
     public void stop() {
