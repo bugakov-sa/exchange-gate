@@ -1,9 +1,8 @@
 package trading.engine;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import trading.exchange.ExchangeManager;
 import trading.message.Message;
+import trading.thread.Worker;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -14,9 +13,7 @@ import java.util.stream.IntStream;
 
 import static java.util.Collections.unmodifiableList;
 
-public class TradeEngine {
-
-    private static final Logger log = LoggerFactory.getLogger(TradeEngine.class);
+public class TradeEngine extends Worker {
 
     private final Queue<Message> exchangeQueue = new ConcurrentLinkedQueue<>();
     private final Queue<Message> robotQueue = new LinkedList<>();
@@ -27,9 +24,10 @@ public class TradeEngine {
     private final StateHolder state;
     private final long loopSleepMillis;
 
-    private volatile boolean stopping = false;
+    private List<Long> ids;
 
-    public TradeEngine(TradeStrategy strategy, ExchangeManager exchange, long loopSleepMillis) {
+    public TradeEngine(String name, TradeStrategy strategy, ExchangeManager exchange, long loopSleepMillis) {
+        super(name);
         this.strategy = strategy;
         this.exchange = exchange;
         this.config = unmodifiableList(strategy.getConfig());
@@ -37,33 +35,28 @@ public class TradeEngine {
         this.state = new StateHolder(new State(), config);
     }
 
-    public void start() {
-        log.info("Starting robot...");
-        List<Long> ids = config.stream()
+    @Override
+    protected void beforeStart() {
+        ids = config.stream()
                 .map(StateConfig::getPair)
                 .map(pair -> exchange.subscribe(pair, exchangeQueue))
                 .collect(Collectors.toList());
-        new Thread(() -> {
-            log.info("Started robot.");
-            do {
-                try {
-                    List<Message> newMessages = pollNewMessages();
-                    state.update(newMessages);
-                    if (state.isStateChanged()) {
-                        stopping = strategy.loop(state.getState(), robotQueue);
-                        processRobotMessages();
-                    }
-                    if (!stopping) {
-                        Thread.sleep(loopSleepMillis);
-                    }
-                } catch (Throwable error) {
-                    log.error("Error during robot loop", error);
-                }
-            }
-            while (!stopping);
-            ids.forEach(exchange::unsubscribe);
-            log.info("Stopping robot...");
-        }).start();
+    }
+
+    @Override
+    protected long executeLoop() {
+        List<Message> newMessages = pollNewMessages();
+        state.update(newMessages);
+        if (state.isStateChanged()) {
+            active = !strategy.loop(state.getState(), robotQueue);
+            processRobotMessages();
+        }
+        return loopSleepMillis;
+    }
+
+    @Override
+    protected void beforeFinish() {
+        ids.forEach(exchange::unsubscribe);
     }
 
     private List<Message> pollNewMessages() {
@@ -76,9 +69,5 @@ public class TradeEngine {
         //TODO: send orders to exchange
         //TODO: send debug messages to management ui
         //TODO: send notifications to mail
-    }
-
-    public void stop() {
-        stopping = true;
     }
 }
