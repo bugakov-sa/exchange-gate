@@ -1,4 +1,4 @@
-package trading.robot;
+package trading.engine;
 
 import trading.message.Message;
 import trading.message.OhlcData;
@@ -9,14 +9,14 @@ import java.util.stream.Collectors;
 
 public class StateHolder {
 
-    private final List<ConfigItem> configs;
+    private final List<StateConfig> configs;
 
     private State state;
 
     private boolean stateChanged = false;
     private OhlcData lastMessage = null;
 
-    public StateHolder(State state, List<ConfigItem> configs) {
+    public StateHolder(State state, List<StateConfig> configs) {
         this.state = state;
         this.configs = configs;
     }
@@ -32,7 +32,7 @@ public class StateHolder {
     public void update(List<Message> newMessages) {
         stateChanged = false;
         final State.Builder stateBuilder = new State.Builder();
-        for (ConfigItem config : configs) {
+        for (StateConfig config : configs) {
             final String pair = config.getPair();
             final int bufferSize = config.getBufferSize();
             final List<OhlcData> newPairMessages = filterOhlcMessages(newMessages, pair);

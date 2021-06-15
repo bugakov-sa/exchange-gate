@@ -3,8 +3,7 @@ create schema exchange_gate;
 create table exchange_gate.robot(
     id uuid primary key,
     name text not null,
-    type text not null,
-    status text not null
+    strategy text not null
 );
 
 create table exchange_gate.param(

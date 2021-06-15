@@ -8,17 +8,15 @@ import java.util.UUID;
 
 @Entity(name = "robot")
 @Data
-public class Robot {
+public class TradeRobot {
 
     @Id
     @GeneratedValue
     private UUID id;
     @Enumerated(EnumType.STRING)
-    private Type type;
+    private Strategy strategy;
     @Column
     private String name;
-    @Enumerated(EnumType.STRING)
-    private Status status;
     @OneToMany(mappedBy = "robot",
             fetch = FetchType.EAGER,
             cascade = {CascadeType.ALL},
@@ -26,15 +24,8 @@ public class Robot {
     )
     private List<Param> params;
 
-    public enum Type {
+    public enum Strategy {
         LOG_LAST_OHLC,
         LOG_LAST_MINUTE_OHLC
-    }
-
-    public enum Status {
-        OFF,
-        STARTING,
-        WORKING,
-        STOPPING
     }
 }

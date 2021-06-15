@@ -1,4 +1,4 @@
-package trading.robot;
+package trading.engine;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,22 +14,22 @@ import java.util.stream.IntStream;
 
 import static java.util.Collections.unmodifiableList;
 
-public class Robot {
+public class TradeEngine {
 
-    private static final Logger log = LoggerFactory.getLogger(Robot.class);
+    private static final Logger log = LoggerFactory.getLogger(TradeEngine.class);
 
     private final Queue<Message> exchangeQueue = new ConcurrentLinkedQueue<>();
     private final Queue<Message> robotQueue = new LinkedList<>();
 
-    private final RobotStrategy strategy;
+    private final TradeStrategy strategy;
     private final ExchangeManager exchange;
-    private final List<ConfigItem> config;
+    private final List<StateConfig> config;
     private final StateHolder state;
     private final long loopSleepMillis;
 
     private volatile boolean stopping = false;
 
-    public Robot(RobotStrategy strategy, ExchangeManager exchange, long loopSleepMillis) {
+    public TradeEngine(TradeStrategy strategy, ExchangeManager exchange, long loopSleepMillis) {
         this.strategy = strategy;
         this.exchange = exchange;
         this.config = unmodifiableList(strategy.getConfig());
@@ -40,7 +40,7 @@ public class Robot {
     public void start() {
         log.info("Starting robot...");
         List<Long> ids = config.stream()
-                .map(ConfigItem::getPair)
+                .map(StateConfig::getPair)
                 .map(pair -> exchange.subscribe(pair, exchangeQueue))
                 .collect(Collectors.toList());
         new Thread(() -> {

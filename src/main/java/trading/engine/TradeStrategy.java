@@ -1,13 +1,13 @@
-package trading.robot;
+package trading.engine;
 
 import trading.message.Message;
 
 import java.util.List;
 import java.util.Queue;
 
-public interface RobotStrategy {
+public interface TradeStrategy {
 
-    List<ConfigItem> getConfig();
+    List<StateConfig> getConfig();
 
     boolean loop(State state, Queue<Message> messages);
 }

@@ -1,4 +1,4 @@
-package trading.robot;
+package trading.engine;
 
 import lombok.ToString;
 import trading.message.OhlcData;

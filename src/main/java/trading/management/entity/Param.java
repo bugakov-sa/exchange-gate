@@ -20,7 +20,7 @@ public class Param {
     private String value;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "robot_id")
-    private Robot robot;
+    private TradeRobot robot;
 
     public enum Type {
         INT,
