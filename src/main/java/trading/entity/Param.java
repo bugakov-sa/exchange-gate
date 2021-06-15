@@ -1,4 +1,4 @@
-package trading.management.entity;
+package trading.entity;
 
 import lombok.Data;
 

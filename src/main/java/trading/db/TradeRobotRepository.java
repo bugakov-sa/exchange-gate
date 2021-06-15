@@ -1,7 +1,7 @@
-package trading.management;
+package trading.db;
 
 import org.springframework.data.repository.CrudRepository;
-import trading.management.entity.TradeRobot;
+import trading.entity.TradeRobot;
 
 import java.util.UUID;
 
