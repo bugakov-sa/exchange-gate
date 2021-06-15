@@ -17,6 +17,8 @@ public class TradeRobot {
     private Strategy strategy;
     @Column
     private String name;
+    @Column
+    private boolean active;
     @OneToMany(mappedBy = "robot",
             fetch = FetchType.EAGER,
             cascade = {CascadeType.ALL},
