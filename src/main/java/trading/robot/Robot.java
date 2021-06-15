@@ -17,7 +17,6 @@ import static java.util.Collections.unmodifiableList;
 public class Robot {
 
     private static final Logger log = LoggerFactory.getLogger(Robot.class);
-    private static final int LOOP_SLEEP_MILLIS = 5000;
 
     private final Queue<Message> exchangeQueue = new ConcurrentLinkedQueue<>();
     private final Queue<Message> robotQueue = new LinkedList<>();
@@ -26,13 +25,15 @@ public class Robot {
     private final ExchangeManager exchange;
     private final List<ConfigItem> config;
     private final StateHolder state;
+    private final long loopSleepMillis;
 
     private volatile boolean stopping = false;
 
-    public Robot(RobotStrategy strategy, ExchangeManager exchange) {
+    public Robot(RobotStrategy strategy, ExchangeManager exchange, long loopSleepMillis) {
         this.strategy = strategy;
         this.exchange = exchange;
         this.config = unmodifiableList(strategy.getConfig());
+        this.loopSleepMillis = loopSleepMillis;
         this.state = new StateHolder(new State(), config);
     }
 
@@ -53,7 +54,7 @@ public class Robot {
                         processRobotMessages();
                     }
                     if (!stopping) {
-                        Thread.sleep(LOOP_SLEEP_MILLIS);
+                        Thread.sleep(loopSleepMillis);
                     }
                 } catch (Throwable error) {
                     log.error("Error during robot loop", error);

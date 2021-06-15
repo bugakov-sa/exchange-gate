@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketHttpHeaders;
@@ -28,7 +29,9 @@ public class KrakenExchangeClient implements ExchangeClient {
 
     private static final Logger log = LoggerFactory.getLogger(KrakenExchangeClient.class);
     private static final ObjectMapper jsonMapper = new ObjectMapper();
-    private static final String URL = "wss://ws.kraken.com";
+
+    @Value("${exchange.kraken.url}")
+    private String url;
 
     private volatile Consumer<Message> consumer;
 
@@ -63,7 +66,7 @@ public class KrakenExchangeClient implements ExchangeClient {
         session = client.doHandshake(
                 handler,
                 new WebSocketHttpHeaders(),
-                URI.create(URL)
+                URI.create(url)
         ).get();
         log.info("Initialization of gate completed.");
     }
