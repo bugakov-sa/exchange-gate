@@ -3,12 +3,15 @@ package trading.thread;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public abstract class Worker {
 
     private static final Logger log = LoggerFactory.getLogger(Worker.class);
 
-    protected final String name;
+    private final AtomicBoolean started = new AtomicBoolean(false);
 
+    protected final String name;
     protected volatile boolean active = true;
 
     public Worker(String name) {
@@ -25,30 +28,32 @@ public abstract class Worker {
 
     }
 
-    public void start() {
-        log.info("Starting {}", name);
-        beforeStart();
-        Thread thread = new Thread(() -> {
-            log.info("Started {}", name);
-            do {
-                try {
-                    long sleepMillis = executeLoop();
-                    if (sleepMillis > 0) {
-                        Thread.sleep(sleepMillis);
+    public final void start() {
+        if (!started.getAndSet(true)) {
+            Thread thread = new Thread(() -> {
+                log.info("Starting {}", name);
+                beforeStart();
+                log.info("Started {}", name);
+                do {
+                    try {
+                        long sleepMillis = executeLoop();
+                        if (sleepMillis > 0) {
+                            Thread.sleep(sleepMillis);
+                        }
+                    } catch (Throwable throwable) {
+                        log.error("Error during loop " + name, throwable);
                     }
-                } catch (Throwable throwable) {
-                    log.error("Error during loop " + name, throwable);
                 }
-            }
-            while (active);
-            beforeFinish();
-            log.info("Stopping {}", name);
-        });
-        thread.setName(name);
-        thread.start();
+                while (active);
+                beforeFinish();
+                log.info("Stopping {}", name);
+            });
+            thread.setName(name);
+            thread.start();
+        }
     }
 
-    public void stop() {
+    public final void stop() {
         active = false;
     }
 }
