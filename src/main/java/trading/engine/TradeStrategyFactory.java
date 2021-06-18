@@ -3,9 +3,29 @@ package trading.engine;
 import trading.engine.strategy.LogLastMinuteOhlcStrategy;
 import trading.engine.strategy.LogLastOhlcStrategy;
 import trading.entity.Param;
+import trading.entity.StrategyDescriptor;
 import trading.entity.TradeRobot;
 
+import java.util.List;
+
+import static java.util.Arrays.asList;
+import static java.util.Collections.unmodifiableList;
+import static trading.entity.ParamDescriptor.string;
+import static trading.entity.TradeRobot.Strategy.LOG_LAST_MINUTE_OHLC;
+import static trading.entity.TradeRobot.Strategy.LOG_LAST_OHLC;
+
 public class TradeStrategyFactory {
+
+    public static final List<StrategyDescriptor> descriptors = unmodifiableList(asList(
+            new StrategyDescriptor(
+                    LOG_LAST_MINUTE_OHLC,
+                    string("pair")
+            ),
+            new StrategyDescriptor(
+                    LOG_LAST_OHLC,
+                    string("pair")
+            )
+    ));
 
     private static class Params {
         private final TradeRobot robot;
