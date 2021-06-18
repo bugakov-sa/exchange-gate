@@ -11,7 +11,8 @@ public interface Message {
         OHLC_DATA,
         ORDER,
         HEARTBEAT,
-        UNPARSED_EVENT
+        UNPARSED_EVENT,
+        DEBUG
     }
 
     Type getType();

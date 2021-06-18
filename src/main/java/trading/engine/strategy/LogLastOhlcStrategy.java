@@ -1,11 +1,10 @@
 package trading.engine.strategy;
 
 import lombok.AllArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import trading.engine.State;
 import trading.engine.StateConfig;
 import trading.engine.TradeStrategy;
+import trading.message.DebugMessage;
 import trading.message.Message;
 import trading.message.OhlcData;
 
@@ -15,8 +14,6 @@ import java.util.Queue;
 
 @AllArgsConstructor
 public class LogLastOhlcStrategy implements TradeStrategy {
-
-    private static final Logger log = LoggerFactory.getLogger(LogLastOhlcStrategy.class);
 
     private final String pair;
 
@@ -30,7 +27,7 @@ public class LogLastOhlcStrategy implements TradeStrategy {
     @Override
     public boolean loop(State state, Queue<Message> messages) {
         OhlcData lastValue = state.getLastValue(pair);
-        log.info("Ohlc: {}", lastValue);
+        messages.add(new DebugMessage(lastValue.toString()));
         return false;
     }
 }

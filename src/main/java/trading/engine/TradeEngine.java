@@ -1,6 +1,9 @@
 package trading.engine;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import trading.exchange.ExchangeManager;
+import trading.message.DebugMessage;
 import trading.message.Message;
 import trading.thread.Worker;
 
@@ -14,6 +17,8 @@ import java.util.stream.IntStream;
 import static java.util.Collections.unmodifiableList;
 
 public class TradeEngine extends Worker {
+
+    private final Logger log = LoggerFactory.getLogger(name);
 
     private final Queue<Message> exchangeQueue = new ConcurrentLinkedQueue<>();
     private final Queue<Message> robotQueue = new LinkedList<>();
@@ -69,5 +74,15 @@ public class TradeEngine extends Worker {
         //TODO: send orders to exchange
         //TODO: send debug messages to management ui
         //TODO: send notifications to mail
+        while (!robotQueue.isEmpty()){
+            Message message = robotQueue.poll();
+            switch (message.getType()) {
+                case DEBUG:
+                    //TODO: send to web socket
+                    //TODO: save to db
+                    log.info(((DebugMessage)message).getMessage());
+                    break;
+            }
+        }
     }
 }
