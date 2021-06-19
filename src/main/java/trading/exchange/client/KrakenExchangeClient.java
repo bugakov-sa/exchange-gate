@@ -13,13 +13,13 @@ import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import trading.exchange.ExchangeClient;
 import trading.message.Message;
+import trading.message.handler.MessageHandler;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.net.URI;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Consumer;
 
 import static trading.exchange.client.message.ConfigSubscriptionMessage.subscribeOhlc;
 import static trading.exchange.client.message.ConfigSubscriptionMessage.unsubscribeOhlc;
@@ -30,14 +30,15 @@ public class KrakenExchangeClient implements ExchangeClient {
     private static final Logger log = LoggerFactory.getLogger(KrakenExchangeClient.class);
     private static final ObjectMapper jsonMapper = new ObjectMapper();
 
-    @Value("${exchange.kraken.url}")
-    private String url;
+    private final MessageHandler messageHandler;
+    private final String url;
 
-    private volatile Consumer<Message> consumer;
-
-    @Override
-    public void setConsumer(Consumer<Message> consumer) {
-        this.consumer = consumer;
+    public KrakenExchangeClient(
+            MessageHandler messageHandler,
+            @Value("${exchange.kraken.url}") String url
+    ) {
+        this.messageHandler = messageHandler;
+        this.url = url;
     }
 
     private final TextWebSocketHandler handler = new TextWebSocketHandler() {
@@ -47,7 +48,7 @@ public class KrakenExchangeClient implements ExchangeClient {
             Message m = DecodingHelper.tryParse(message.getPayload());
             if (m != null) {
                 try {
-                    consumer.accept(m);
+                    messageHandler.handle(m);
                 } catch (Throwable t) {
                     log.error("Error at accepting message " + m, t);
                 }

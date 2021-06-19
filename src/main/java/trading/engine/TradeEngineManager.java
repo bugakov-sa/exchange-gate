@@ -6,7 +6,8 @@ import org.springframework.stereotype.Component;
 import trading.db.TradeRobotRepository;
 import trading.entity.Param;
 import trading.entity.TradeRobot;
-import trading.exchange.ExchangeManager;
+import trading.exchange.ExchangeClient;
+import trading.message.handler.MessageHandler;
 import trading.thread.Worker;
 
 import javax.annotation.PostConstruct;
@@ -24,7 +25,9 @@ public class TradeEngineManager extends Worker {
     @Autowired
     private TradeRobotRepository tradeRobotRepository;
     @Autowired
-    private ExchangeManager exchangeManager;
+    private ExchangeClient exchangeClient;
+    @Autowired
+    private MessageHandler messageHandler;
     @Value("${robot.loop.sleep.millis:5000}")
     private long loopSleepMillis;
 
@@ -54,7 +57,8 @@ public class TradeEngineManager extends Worker {
                 TradeEngine engine = new TradeEngine(
                         robot.getName(),
                         strategy,
-                        exchangeManager,
+                        exchangeClient,
+                        messageHandler,
                         loopSleepMillis
                 );
                 engine.start();

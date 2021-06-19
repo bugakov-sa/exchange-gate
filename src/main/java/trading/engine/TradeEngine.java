@@ -1,88 +1,84 @@
 package trading.engine;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import trading.exchange.ExchangeManager;
-import trading.message.DebugMessage;
+import trading.exchange.ExchangeClient;
 import trading.message.Message;
+import trading.message.OhlcData;
+import trading.message.handler.MessageHandler;
+import trading.message.handler.MessageRouter;
 import trading.thread.Worker;
 
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import static java.util.Collections.unmodifiableList;
+import java.util.stream.Stream;
 
 public class TradeEngine extends Worker {
 
-    private final Logger log = LoggerFactory.getLogger(name);
-
-    private final Queue<Message> exchangeQueue = new ConcurrentLinkedQueue<>();
+    private final Queue<Message> ohlcDataQueue = new ConcurrentLinkedQueue<>();
     private final Queue<Message> robotQueue = new LinkedList<>();
 
     private final TradeStrategy strategy;
-    private final ExchangeManager exchange;
-    private final List<StateConfig> config;
+    private final ExchangeClient exchangeClient;
+    private final MessageHandler messageHandler;
     private final StateHolder state;
     private final long loopSleepMillis;
+    private final MessageRouter messageRouter;
 
-    private List<Long> ids;
-
-    public TradeEngine(String name, TradeStrategy strategy, ExchangeManager exchange, long loopSleepMillis) {
+    public TradeEngine(String name, TradeStrategy strategy, ExchangeClient exchangeClient, MessageHandler messageHandler, long loopSleepMillis) {
         super(name);
+
         this.strategy = strategy;
-        this.exchange = exchange;
-        this.config = unmodifiableList(strategy.getConfig());
+        this.exchangeClient = exchangeClient;
+        this.messageHandler = messageHandler;
         this.loopSleepMillis = loopSleepMillis;
-        this.state = new StateHolder(new State(), config);
+        this.state = new StateHolder(new State(), strategy.getConfig());
+
+        Set<String> pairs = getPairs().collect(Collectors.toSet());
+        this.messageRouter = MessageRouter.builder()
+                .when(message -> {
+                    if(message.getType() == Message.Type.OHLC_DATA) {
+                        if(pairs.contains(((OhlcData)message).getPair())) {
+                            return true;
+                        }
+                    }
+                    return false;
+                })
+                .then(ohlcDataQueue)
+                .build();
     }
 
     @Override
     protected void beforeStart() {
-        ids = config.stream()
-                .map(StateConfig::getPair)
-                .map(pair -> exchange.subscribe(pair, exchangeQueue))
-                .collect(Collectors.toList());
+        messageHandler.register(messageRouter);
+        getPairs().forEach(exchangeClient::subscribe);
     }
 
     @Override
     protected long executeLoop() {
-        List<Message> newMessages = pollNewMessages();
+        List<Message> newMessages = IntStream.range(0, ohlcDataQueue.size())
+                .mapToObj(i -> ohlcDataQueue.poll())
+                .collect(Collectors.toList());
         state.update(newMessages);
         if (state.isStateChanged()) {
             active = !strategy.loop(state.getState(), robotQueue);
-            processRobotMessages();
+            while (!robotQueue.isEmpty()) {
+                messageHandler.handle(robotQueue.poll());
+            }
         }
         return loopSleepMillis;
     }
 
     @Override
     protected void beforeFinish() {
-        ids.forEach(exchange::unsubscribe);
+        getPairs().forEach(exchangeClient::unsubscribe);
+        messageHandler.unregister(messageRouter);
     }
 
-    private List<Message> pollNewMessages() {
-        return IntStream.range(0, exchangeQueue.size())
-                .mapToObj(i -> exchangeQueue.poll())
-                .collect(Collectors.toList());
-    }
-
-    private void processRobotMessages() {
-        //TODO: send orders to exchange
-        //TODO: send debug messages to management ui
-        //TODO: send notifications to mail
-        while (!robotQueue.isEmpty()){
-            Message message = robotQueue.poll();
-            switch (message.getType()) {
-                case DEBUG:
-                    //TODO: send to web socket
-                    //TODO: save to db
-                    log.info(((DebugMessage)message).getMessage());
-                    break;
-            }
-        }
+    private Stream<String> getPairs() {
+        return strategy.getConfig().stream().map(StateConfig::getPair);
     }
 }
