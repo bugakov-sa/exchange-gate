@@ -2,7 +2,6 @@ package trading.exchange.client.message;
 
 import lombok.Data;
 
-import java.util.Arrays;
 import java.util.List;
 
 import static java.util.Collections.unmodifiableList;
@@ -23,17 +22,17 @@ public class ConfigSubscriptionMessage {
     private final List<String> pair;
     private final Subscription subscription;
 
-    private ConfigSubscriptionMessage(Event event, Subscription subscription, String... pairs) {
+    private ConfigSubscriptionMessage(Event event, Subscription subscription, List<String> pairs) {
         this.event = event;
-        this.pair = unmodifiableList(Arrays.asList(pairs));
+        this.pair = unmodifiableList(pairs);
         this.subscription = subscription;
     }
 
-    public static ConfigSubscriptionMessage subscribeOhlc(String... pairs) {
+    public static ConfigSubscriptionMessage subscribeOhlc(List<String> pairs) {
         return new ConfigSubscriptionMessage(SUBSCRIBE, OHLC, pairs);
     }
 
-    public static ConfigSubscriptionMessage unsubscribeOhlc(String... pairs) {
+    public static ConfigSubscriptionMessage unsubscribeOhlc(List<String> pairs) {
         return new ConfigSubscriptionMessage(UNSUBSCRIBE, OHLC, pairs);
     }
 }

@@ -8,6 +8,7 @@ package trading.message;
  */
 public interface Message {
     enum Type {
+        START_TRANSFER_OHLC,
         OHLC_DATA,
         ORDER,
         HEARTBEAT,

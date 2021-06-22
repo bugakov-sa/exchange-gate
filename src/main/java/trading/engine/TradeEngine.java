@@ -3,6 +3,7 @@ package trading.engine;
 import trading.exchange.ExchangeClient;
 import trading.message.Message;
 import trading.message.OhlcData;
+import trading.message.StartTransferOhlc;
 import trading.message.handler.MessageHandler;
 import trading.message.handler.MessageRouter;
 import trading.thread.Worker;
@@ -54,7 +55,7 @@ public class TradeEngine extends Worker {
     @Override
     protected void beforeStart() {
         messageHandler.register(messageRouter);
-        getPairs().forEach(exchangeClient::subscribe);
+        exchangeClient.send(new StartTransferOhlc(getPairs().collect(Collectors.toList())));
     }
 
     @Override
@@ -74,7 +75,6 @@ public class TradeEngine extends Worker {
 
     @Override
     protected void beforeFinish() {
-        getPairs().forEach(exchangeClient::unsubscribe);
         messageHandler.unregister(messageRouter);
     }
 

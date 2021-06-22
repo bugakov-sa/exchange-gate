@@ -18,13 +18,13 @@ public abstract class Worker {
         this.name = name;
     }
 
-    protected void beforeStart() {
+    protected void beforeStart() throws Exception {
 
     }
 
     protected abstract long executeLoop();
 
-    protected void beforeFinish() {
+    protected void beforeFinish() throws Exception {
 
     }
 
@@ -32,7 +32,12 @@ public abstract class Worker {
         if (!started.getAndSet(true)) {
             Thread thread = new Thread(() -> {
                 log.info("Starting {}", name);
-                beforeStart();
+                try {
+                    beforeStart();
+                } catch (Throwable e) {
+                    log.error("Error during beforeStart " + name, e);
+                    return;
+                }
                 log.info("Started {}", name);
                 do {
                     try {
@@ -41,11 +46,16 @@ public abstract class Worker {
                             Thread.sleep(sleepMillis);
                         }
                     } catch (Throwable throwable) {
-                        log.error("Error during loop " + name, throwable);
+                        log.error("Error during executeLoop " + name, throwable);
                     }
                 }
                 while (active);
-                beforeFinish();
+                try {
+                    beforeFinish();
+                } catch (Throwable e) {
+                    log.error("Error during beforeFinish " + name, e);
+                    return;
+                }
                 log.info("Stopping {}", name);
             });
             thread.setName(name);

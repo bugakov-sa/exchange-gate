@@ -1,8 +1,8 @@
 package trading.exchange;
 
+import trading.message.ExchangeCommand;
+
 public interface ExchangeClient {
 
-    void subscribe(String... pairs);
-
-    void unsubscribe(String... pairs);
+    void send(ExchangeCommand command);
 }

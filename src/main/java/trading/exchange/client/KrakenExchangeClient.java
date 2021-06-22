@@ -12,24 +12,29 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import trading.exchange.ExchangeClient;
+import trading.message.ExchangeCommand;
 import trading.message.Message;
+import trading.message.StartTransferOhlc;
 import trading.message.handler.MessageHandler;
+import trading.thread.Worker;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.net.URI;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 
 import static trading.exchange.client.message.ConfigSubscriptionMessage.subscribeOhlc;
-import static trading.exchange.client.message.ConfigSubscriptionMessage.unsubscribeOhlc;
 
 @Component
-public class KrakenExchangeClient implements ExchangeClient {
+public class KrakenExchangeClient extends Worker implements ExchangeClient {
 
     private static final Logger log = LoggerFactory.getLogger(KrakenExchangeClient.class);
     private static final ObjectMapper jsonMapper = new ObjectMapper();
 
+    private final Queue<ExchangeCommand> commands = new ConcurrentLinkedQueue<>();
     private final MessageHandler messageHandler;
     private final String url;
 
@@ -37,6 +42,7 @@ public class KrakenExchangeClient implements ExchangeClient {
             MessageHandler messageHandler,
             @Value("${exchange.kraken.url}") String url
     ) {
+        super("kraken-exchange-client");
         this.messageHandler = messageHandler;
         this.url = url;
     }
@@ -60,8 +66,8 @@ public class KrakenExchangeClient implements ExchangeClient {
 
     private volatile WebSocketSession session;
 
-    @PostConstruct
-    public void init() throws ExecutionException, InterruptedException {
+    @Override
+    protected void beforeStart() throws ExecutionException, InterruptedException {
         log.info("Initialization of gate...");
         StandardWebSocketClient client = new StandardWebSocketClient();
         session = client.doHandshake(
@@ -73,18 +79,41 @@ public class KrakenExchangeClient implements ExchangeClient {
     }
 
     @Override
-    public void subscribe(String... pairs) {
-        send(subscribeOhlc(pairs));
+    protected long executeLoop() {
+        while (!commands.isEmpty()) {
+            ExchangeCommand command = commands.poll();
+            switch (command.getType()) {
+                case START_TRANSFER_OHLC:
+                    send(subscribeOhlc(((StartTransferOhlc) command).getPairs()));
+            }
+        }
+        return 1000;
     }
 
     @Override
-    public void unsubscribe(String... pairs) {
-        send(unsubscribeOhlc(pairs));
+    protected void beforeFinish() throws IOException {
+        session.close();
+    }
+
+    @PostConstruct
+    public void init() {
+        super.start();
     }
 
     @PreDestroy
     public void close() throws IOException {
-        session.close();
+        super.stop();
+    }
+
+    @Override
+    public void send(ExchangeCommand command) {
+        switch (command.getType()) {
+            case START_TRANSFER_OHLC:
+                commands.add(command);
+                return;
+            default:
+                throw new RuntimeException("Unsupported command type " + command.getType());
+        }
     }
 
     private TextMessage buildTextMessage(Object message) {
