@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
 
 import static trading.exchange.client.message.ConfigSubscriptionMessage.subscribeOhlc;
 
@@ -37,6 +36,13 @@ public class KrakenExchangeClient extends Worker implements ExchangeClient {
     private final Queue<ExchangeCommand> commands = new ConcurrentLinkedQueue<>();
     private final MessageHandler messageHandler;
     private final String url;
+
+    private enum State {
+        CONNECTING,
+        CONNECTED
+    }
+
+    private State state = State.CONNECTING;
 
     public KrakenExchangeClient(
             MessageHandler messageHandler,
@@ -66,20 +72,43 @@ public class KrakenExchangeClient extends Worker implements ExchangeClient {
 
     private volatile WebSocketSession session;
 
-    @Override
-    protected void beforeStart() throws ExecutionException, InterruptedException {
-        log.info("Initialization of gate...");
-        StandardWebSocketClient client = new StandardWebSocketClient();
-        session = client.doHandshake(
-                handler,
-                new WebSocketHttpHeaders(),
-                URI.create(url)
-        ).get();
-        log.info("Initialization of gate completed.");
+    private boolean connect() {
+        try {
+            log.info("Initialization of gate...");
+            StandardWebSocketClient client = new StandardWebSocketClient();
+            session = client.doHandshake(
+                    handler,
+                    new WebSocketHttpHeaders(),
+                    URI.create(url)
+            ).get();
+            log.info("Initialization of gate completed.");
+            return true;
+        } catch (Throwable e) {
+            log.error("Error during initialization of gate", e);
+            return false;
+        }
     }
 
     @Override
     protected long executeLoop() {
+        long pauseMillis = 1000;
+        switch (state) {
+            case CONNECTING:
+                if (connect()) {
+                    state = State.CONNECTED;
+                    pauseMillis = 0;
+                } else {
+                    pauseMillis = 5000;
+                }
+                break;
+            case CONNECTED:
+                processCommands();
+                break;
+        }
+        return pauseMillis;
+    }
+
+    private void processCommands() {
         while (!commands.isEmpty()) {
             ExchangeCommand command = commands.poll();
             switch (command.getType()) {
@@ -87,7 +116,6 @@ public class KrakenExchangeClient extends Worker implements ExchangeClient {
                     send(subscribeOhlc(((StartTransferOhlc) command).getPairs()));
             }
         }
-        return 1000;
     }
 
     @Override
