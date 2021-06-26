@@ -102,19 +102,19 @@ public class KrakenExchangeClient extends Worker implements ExchangeClient {
                 }
                 break;
             case CONNECTED:
-                processCommands();
+                if(!commands.isEmpty()) {
+                    execute(commands.poll());
+                    pauseMillis = 0;
+                }
                 break;
         }
         return pauseMillis;
     }
 
-    private void processCommands() {
-        while (!commands.isEmpty()) {
-            ExchangeCommand command = commands.poll();
-            switch (command.getType()) {
-                case START_TRANSFER_OHLC:
-                    send(subscribeOhlc(((StartTransferOhlc) command).getPairs()));
-            }
+    private void execute(ExchangeCommand command) {
+        switch (command.getType()) {
+            case START_TRANSFER_OHLC:
+                send(subscribeOhlc(((StartTransferOhlc) command).getPairs()));
         }
     }
 
